@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ban / Pick — Total War</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --border: #2e3344;
+      --text: #e8eaef;
+      --muted: #8b92a8;
+      --accent: #3d8fd1;
+      --pick: #2a6f4e;
+      --ban: #8b2e2e;
+      --highlight: #f0c040;
+    }
+
+    body {
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 1.5rem;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-bottom: 1rem;
+    }
+
+    .player-names {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      margin-bottom: 1.25rem;
+      flex-wrap: wrap;
+    }
+
+    .player-names label {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      font-size: 0.75rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .player-names input {
+      width: 180px;
+      padding: 0.5rem 0.65rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--surface);
+      color: var(--text);
+      font-size: 0.95rem;
+    }
+
+    .player-names input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .player-names .vs {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--muted);
+      padding-top: 1rem;
+    }
+
+    /* ── Match tabs (BO3) ── */
+    .match-tabs {
+      display: flex;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .match-tab {
+      min-width: 140px;
+      padding: 0.65rem 1rem;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--muted);
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      text-align: center;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+
+    .match-tab:hover {
+      border-color: var(--accent);
+      color: var(--text);
+    }
+
+    .match-tab.active {
+      border-color: var(--accent);
+      color: var(--text);
+      background: #1e2433;
+      box-shadow: 0 0 0 1px rgba(61, 143, 209, 0.25);
+    }
+
+    .match-tab .tab-meta {
+      display: block;
+      font-size: 0.7rem;
+      margin-top: 0.25rem;
+      opacity: 0.85;
+    }
+
+    .match-tab.complete .tab-meta {
+      color: var(--pick);
+    }
+
+    .bo3-note {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.8rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .match3-winner {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 1rem;
+    }
+
+    .match3-winner.hidden { display: none; }
+
+    .match3-winner label {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      font-size: 0.9rem;
+      color: var(--text);
+    }
+
+    .match3-winner select {
+      padding: 0.45rem 0.65rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--surface);
+      color: var(--text);
+      font-size: 0.9rem;
+      min-width: 180px;
+    }
+
+    .match3-winner select:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    /* ── Icon pool ── */
+    .icon-pool {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .icon-pool h2 {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-bottom: 0.75rem;
+    }
+
+    .icons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      justify-content: center;
+    }
+
+    .icon-btn {
+      width: 56px;
+      height: 56px;
+      border: 2px solid transparent;
+      border-radius: 8px;
+      background: #12141c;
+      cursor: pointer;
+      padding: 4px;
+      transition: border-color 0.15s, transform 0.1s, opacity 0.15s;
+    }
+
+    .icon-btn img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+      pointer-events: none;
+    }
+
+    .icon-btn:hover:not(.unavailable) {
+      border-color: var(--accent);
+      transform: scale(1.06);
+    }
+
+    .icon-btn.selected {
+      border-color: var(--highlight);
+      box-shadow: 0 0 0 2px rgba(240, 192, 64, 0.3);
+    }
+
+    .icon-btn.unavailable {
+      opacity: 0.25;
+      cursor: not-allowed;
+    }
+
+    .phase-hint {
+      text-align: center;
+      margin-top: 0.75rem;
+      font-size: 0.95rem;
+      color: var(--highlight);
+      min-height: 1.4em;
+    }
+
+    /* ── Rounds ── */
+    .rounds {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      max-width: 960px;
+      margin: 0 auto 2rem;
+    }
+
+    .round {
+      display: grid;
+      grid-template-columns: 80px 1fr 1fr;
+      gap: 0.75rem;
+      align-items: start;
+      padding: 1.25rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .round:last-child { border-bottom: none; }
+
+    .round-label {
+      font-size: 0.8rem;
+      color: var(--muted);
+      padding-top: 0.5rem;
+      line-height: 1.3;
+    }
+
+    .round-label strong {
+      display: block;
+      color: var(--text);
+      font-size: 1rem;
+    }
+
+    .column {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .column-header {
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 0.35rem 0.6rem;
+      border-radius: 4px;
+      width: fit-content;
+    }
+
+    .column-header.pick { background: var(--pick); }
+    .column-header.ban  { background: var(--ban); }
+
+    .column.hidden { display: none; }
+
+    .slots {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      min-height: 60px;
+    }
+
+    .slot {
+      height: 52px;
+      border: 2px dashed var(--border);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      transition: border-color 0.15s, background 0.15s;
+      position: relative;
+    }
+
+    .slot.active {
+      border-color: var(--highlight);
+      border-style: solid;
+      background: rgba(240, 192, 64, 0.06);
+    }
+
+    .slot.filled {
+      border-style: solid;
+      border-color: var(--border);
+      cursor: pointer;
+    }
+
+    .slot.filled.bannable {
+      cursor: pointer;
+      outline: 2px solid var(--highlight);
+      outline-offset: -2px;
+    }
+
+    .slot.filled.bannable:hover {
+      outline-color: var(--ban);
+      filter: brightness(1.1);
+    }
+
+    .slot img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .slot .placeholder {
+      color: var(--muted);
+      font-size: 0.75rem;
+    }
+
+    .slot .remove {
+      position: absolute;
+      top: 2px;
+      right: 4px;
+      background: rgba(0,0,0,0.7);
+      border: none;
+      color: #fff;
+      font-size: 0.7rem;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: none;
+      line-height: 1;
+    }
+
+    .slot.filled:hover .remove { display: block; }
+
+    /* ── Result ── */
+    .result {
+      max-width: 960px;
+      margin: 0 auto;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.5rem;
+      text-align: center;
+    }
+
+    .result h2 {
+      font-size: 1.1rem;
+      margin-bottom: 1rem;
+    }
+
+    .matchup {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1.5rem;
+    }
+
+    .player-result {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      min-width: 200px;
+    }
+
+    .player-result .name {
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .player-result .banner-wrap {
+      width: 100%;
+      max-width: 280px;
+      height: 52px;
+      border-radius: 6px;
+      overflow: hidden;
+      background: #12141c;
+    }
+
+    .player-result .banner-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .player-result .banner-wrap.empty {
+      border: 2px dashed var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+
+    .vs {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--muted);
+    }
+
+    .actions {
+      text-align: center;
+      margin-top: 1.5rem;
+    }
+
+    .btn-reset {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 0.5rem 1.25rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+
+    .btn-reset:hover {
+      border-color: var(--accent);
+      color: var(--text);
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Ban / Pick — BO3</h1>
+  <p class="subtitle">Click a faction icon — it fills the highlighted slot instantly.</p>
+
+  <div class="player-names">
+    <label>
+      Player 1
+      <input type="text" id="p1Name" placeholder="Player 1" maxlength="32" autocomplete="off">
+    </label>
+    <span class="vs">vs</span>
+    <label>
+      Player 2
+      <input type="text" id="p2Name" placeholder="Player 2" maxlength="32" autocomplete="off">
+    </label>
+  </div>
+
+  <nav class="match-tabs" id="matchTabs">
+    <button type="button" class="match-tab active" data-match="0">
+      Match 1
+      <span class="tab-meta" data-tab-meta="0">Not started</span>
+    </button>
+    <button type="button" class="match-tab" data-match="1">
+      Match 2
+      <span class="tab-meta" data-tab-meta="1">Not started</span>
+    </button>
+    <button type="button" class="match-tab" data-match="2">
+      Match 3
+      <span class="tab-meta" data-tab-meta="2">Not started</span>
+    </button>
+  </nav>
+
+  <div class="match3-winner hidden" id="match3WinnerPanel">
+    <label>
+      Match 2 winner (first pick in Match 3)
+      <select id="match2Winner">
+        <option value="">Select winner…</option>
+        <option value="1" id="match2WinnerP1">Player 1</option>
+        <option value="2" id="match2WinnerP2">Player 2</option>
+      </select>
+    </label>
+  </div>
+
+  <p class="bo3-note" id="bo3Note"></p>
+
+  <!-- Icon pool -->
+  <section class="icon-pool">
+    <h2>All Factions</h2>
+    <div class="icons" id="iconPool"></div>
+    <p class="phase-hint" id="phaseHint"></p>
+  </section>
+
+  <!-- Rounds -->
+  <section class="rounds">
+
+    <div class="round" data-round="1">
+      <div class="round-label" id="round1-label"><strong>Round 1</strong></div>
+      <div class="column" data-col="r1-pick">
+        <span class="column-header pick" id="hdr-r1-pick">Pick 3 races</span>
+        <div class="slots" id="r1-pick"></div>
+      </div>
+      <div class="column" data-col="r1-ban" id="col-r1-ban">
+        <span class="column-header ban" id="hdr-r1-ban">Ban 1 race</span>
+        <div class="slots" id="r1-ban"></div>
+      </div>
+    </div>
+
+    <div class="round" data-round="2">
+      <div class="round-label" id="round2-label"><strong>Round 2</strong></div>
+      <div class="column" data-col="r2-ban" id="col-r2-ban">
+        <span class="column-header ban" id="hdr-r2-ban">Ban 1 from Player 1's picks</span>
+        <div class="slots" id="r2-ban"></div>
+      </div>
+      <div class="column" data-col="r2-pick">
+        <span class="column-header pick" id="hdr-r2-pick">Pick your race</span>
+        <div class="slots" id="r2-pick"></div>
+      </div>
+    </div>
+
+    <div class="round" data-round="3">
+      <div class="round-label" id="round3-label"><strong>Round 3</strong></div>
+      <div class="column" data-col="r3-pick">
+        <span class="column-header pick" id="hdr-r3-pick">Pick 1 of the 2 remaining</span>
+        <div class="slots" id="r3-pick"></div>
+      </div>
+      <div class="column"></div>
+    </div>
+
+  </section>
+
+  <!-- Final result -->
+  <section class="result">
+    <h2 id="result-title"></h2>
+    <div class="matchup">
+      <div class="player-result">
+        <span class="name" id="p1-result-name"></span>
+        <div class="banner-wrap empty" id="p1-final">—</div>
+      </div>
+      <span class="vs">vs</span>
+      <div class="player-result">
+        <span class="name" id="p2-result-name"></span>
+        <div class="banner-wrap empty" id="p2-final">—</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="actions">
+    <button class="btn-reset" id="btnReset">Reset all</button>
+  </div>
+
+  <script>
+    const FACTIONS = [
+      "Beastmen", "Bretonnia", "ChaosDwarfs", "DarkElves", "Dwarfs",
+      "GrandCathay", "Greenskins", "HighElves", "Khorne", "Kislev",
+      "LegionOfChaos", "Lizardmen", "Norsca", "Nurgle", "OgreKingdoms",
+      "Skaven", "Slaanesh", "TheEmpire", "TombKings", "Tzeentch",
+      "VampireCoast", "VampireCounts", "WarriorsOfChaos", "WoodElves"
+    ];
+
+    const BANNER_OVERRIDES = { LegionOfChaos: "daemons-of-chaos" };
+
+    function toBanner(name) {
+      if (BANNER_OVERRIDES[name]) return BANNER_OVERRIDES[name];
+      return name
+        .replace(/([a-z])([A-Z])/g, "$1-$2")
+        .replace(/([A-Z]+)([A-Z][a-z])/g, "$1-$2")
+        .toLowerCase();
+    }
+
+    function iconSrc(name)  { return `banners/icons/${name}.png`; }
+    function bannerSrc(name){ return `banners/races/${toBanner(name)}.png`; }
+    function displayName(name) {
+      return name.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^The /, "The ");
+    }
+
+    const STANDARD_PHASES = [
+      { hint: "Round 1 — {p1}: pick 3 races", slot: "r1-pick" },
+      { hint: "Round 1 — {p1}: ban 1 race", slot: "r1-ban" },
+      { hint: "Round 2 — {p2}: click one of {p1}'s 3 picks (top icons or banners above) to ban it", slot: "r2-ban" },
+      { hint: "Round 2 — {p2}: pick your race", slot: "r2-pick" },
+      { hint: "Round 3 — {p1}: pick 1 of the 2 remaining", slot: "r3-pick" },
+      { hint: "Done! Both players have their factions.", slot: null },
+    ];
+
+    const MATCH2_PHASES = [
+      { hint: "Round 1 — {p2}: pick 3 races", slot: "r1-pick" },
+      { hint: "Round 1 — {p2}: ban 1 race", slot: "r1-ban" },
+      { hint: "Round 2 — {p1}: click one of {p2}'s 3 picks (top icons or banners above) to ban it", slot: "r2-ban" },
+      { hint: "Round 2 — {p1}: pick your race", slot: "r2-pick" },
+      { hint: "Round 3 — {p2}: pick 1 of the 2 remaining", slot: "r3-pick" },
+      { hint: "Done! Both players have their factions.", slot: null },
+    ];
+
+    const ALL_SLOT_GROUPS = ["r1-pick", "r1-ban", "r2-ban", "r2-pick", "r3-pick"];
+
+    function isMatch2(matchIndex = appState.currentMatch) {
+      return matchIndex === 1;
+    }
+
+    function isMatch3(matchIndex = appState.currentMatch) {
+      return matchIndex === 2;
+    }
+
+    function getOpener(matchIndex = appState.currentMatch) {
+      if (isMatch2(matchIndex)) return 2;
+      if (isMatch3(matchIndex)) return appState.match2Winner || null;
+      return 1;
+    }
+
+    function getDefender(matchIndex = appState.currentMatch) {
+      const opener = getOpener(matchIndex);
+      if (!opener) return null;
+      return opener === 1 ? 2 : 1;
+    }
+
+    function playerNameNum(n) {
+      return n === 1 ? p1Name() : p2Name();
+    }
+
+    function getPhases(matchIndex = appState.currentMatch) {
+      if (isMatch3(matchIndex)) {
+        const opener = getOpener(matchIndex);
+        if (!opener) {
+          return [{ hint: "Select Match 2 winner above — they pick first in Match 3", slot: null }];
+        }
+        const o = opener === 1 ? "{p1}" : "{p2}";
+        const d = opener === 1 ? "{p2}" : "{p1}";
+        return [
+          { hint: `Match 3 — ${o}: pick 2 races`, slot: "r1-pick" },
+          { hint: `Match 3 — ${d}: pick your race`, slot: "r2-pick" },
+          { hint: `Match 3 — ${o}: pick 1 of your 2 races (click icon or banner above)`, slot: "r3-pick" },
+          { hint: "Done! Both players have their factions.", slot: null },
+        ];
+      }
+      if (isMatch2(matchIndex)) return MATCH2_PHASES;
+      return STANDARD_PHASES;
+    }
+
+    function getSlotCount(group, matchIndex = appState.currentMatch) {
+      if (isMatch3(matchIndex)) {
+        if (group === "r1-pick") return 2;
+        if (group === "r2-pick" || group === "r3-pick") return 1;
+        return 0;
+      }
+      const counts = { "r1-pick": 3, "r1-ban": 1, "r2-ban": 1, "r2-pick": 1, "r3-pick": 1 };
+      return counts[group] || 0;
+    }
+
+    function getPhaseOrder(matchIndex = appState.currentMatch) {
+      return isMatch3(matchIndex)
+        ? ["r1-pick", "r2-pick", "r3-pick"]
+        : ["r1-pick", "r1-ban", "r2-ban", "r2-pick", "r3-pick"];
+    }
+
+    function getGroupPhase(group, matchIndex = appState.currentMatch) {
+      return getPhases(matchIndex).findIndex(p => p.slot === group);
+    }
+
+    function getActiveSlotGroups(matchIndex = appState.currentMatch) {
+      return ALL_SLOT_GROUPS.filter(g => getSlotCount(g, matchIndex) > 0);
+    }
+
+    const MATCH_COUNT = 3;
+
+    const appState = {
+      currentMatch: 0,
+      match2Winner: null,
+      matches: Array.from({ length: MATCH_COUNT }, () => ({
+        assignments: {},
+        phase: 0,
+        slotIndex: 0,
+      })),
+    };
+
+    function currentMatch() {
+      return appState.matches[appState.currentMatch];
+    }
+
+    function playerFinalPick(matchIndex, player) {
+      const m = appState.matches[matchIndex];
+      if (isMatch3(matchIndex)) {
+        const opener = getOpener(matchIndex);
+        if (!opener) return null;
+        if (player === opener) return m.assignments["r3-pick-0"] || null;
+        return m.assignments["r2-pick-0"] || null;
+      }
+      if (isMatch2(matchIndex)) {
+        if (player === 1) return m.assignments["r2-pick-0"] || null;
+        if (player === 2) return m.assignments["r3-pick-0"] || null;
+      } else {
+        if (player === 1) return m.assignments["r3-pick-0"] || null;
+        if (player === 2) return m.assignments["r2-pick-0"] || null;
+      }
+      return null;
+    }
+
+    function playerUsedRaces(player, beforeMatchIndex) {
+      const used = new Set();
+      for (let i = 0; i < beforeMatchIndex; i++) {
+        const pick = playerFinalPick(i, player);
+        if (pick) used.add(pick);
+      }
+      return used;
+    }
+
+    function slotOwner(group, matchIndex = appState.currentMatch) {
+      const opener = getOpener(matchIndex);
+      if (!opener) return null;
+      const defender = opener === 1 ? 2 : 1;
+      if (group === "r1-pick" || group === "r1-ban" || group === "r3-pick") return opener;
+      if (group === "r2-ban" || group === "r2-pick") return defender;
+      return null;
+    }
+
+    function pickingPlayer(group) {
+      return slotOwner(group);
+    }
+
+    function isBlockedBySeries(faction, group) {
+      const player = pickingPlayer(group);
+      if (!player || appState.currentMatch === 0) return false;
+      return playerUsedRaces(player, appState.currentMatch).has(faction);
+    }
+
+    function matchIsComplete(matchIndex) {
+      return Boolean(playerFinalPick(matchIndex, 1) && playerFinalPick(matchIndex, 2));
+    }
+
+    function createEmptyMatch() {
+      return { assignments: {}, phase: 0, slotIndex: 0 };
+    }
+
+    function p1Name() {
+      return document.getElementById("p1Name").value.trim() || "Player 1";
+    }
+
+    function p2Name() {
+      return document.getElementById("p2Name").value.trim() || "Player 2";
+    }
+
+    function formatHint(template) {
+      if (!template) return "";
+      return template
+        .replace(/\{p1\}/g, p1Name())
+        .replace(/\{p2\}/g, p2Name());
+    }
+
+    function renderPlayerNames() {
+      const mi = appState.currentMatch;
+      const opener = getOpener(mi);
+      const defender = getDefender(mi);
+
+      if (opener && defender) {
+        document.getElementById("round1-label").innerHTML = `<strong>Round 1</strong>${playerNameNum(opener)}`;
+        document.getElementById("round2-label").innerHTML = `<strong>Round 2</strong>${playerNameNum(defender)}`;
+        document.getElementById("round3-label").innerHTML = `<strong>Round 3</strong>${playerNameNum(opener)}`;
+      }
+
+      document.getElementById("result-title").textContent = `${p1Name()} vs ${p2Name()}`;
+      document.getElementById("p1-result-name").textContent = p1Name();
+      document.getElementById("p2-result-name").textContent = p2Name();
+
+      if (opener) {
+        document.getElementById("hdr-r2-ban").textContent = `Ban 1 from ${playerNameNum(opener)}'s picks`;
+      }
+
+      const sel = document.getElementById("match2Winner");
+      document.getElementById("match2WinnerP1").textContent = p1Name();
+      document.getElementById("match2WinnerP2").textContent = p2Name();
+      sel.value = appState.match2Winner ? String(appState.match2Winner) : "";
+
+      if (isMatch3()) {
+        if (opener) {
+          const d = playerNameNum(defender);
+          const o = playerNameNum(opener);
+          document.getElementById("bo3Note").textContent =
+            `Match 3 (pick-only): ${o} picks 2 → ${d} picks 1 → ${o} picks 1 final race. ${o} won Match 2 and picks first. Races used in earlier matches are disabled.`;
+        } else {
+          document.getElementById("bo3Note").textContent =
+            "Select who won Match 2 — they get first pick in Match 3. Each race can only be used once per player across the series.";
+        }
+      } else if (isMatch2()) {
+        document.getElementById("bo3Note").textContent =
+          `Match 2: ${p2Name()} picks first. Each player can only play each race once across the series.`;
+      } else {
+        document.getElementById("bo3Note").textContent =
+          `Match 1: ${p1Name()} picks first. Each player can only play each race once across the series.`;
+      }
+    }
+
+    function slotKey(group, index) { return `${group}-${index}`; }
+
+    function getSlotValues(group) {
+      const count = getSlotCount(group);
+      const vals = [];
+      const assignments = currentMatch().assignments;
+      for (let i = 0; i < count; i++) {
+        vals.push(assignments[slotKey(group, i)] || null);
+      }
+      return vals;
+    }
+
+    function allAssigned(group) {
+      if (!group || getSlotCount(group) === 0) return true;
+      return getSlotValues(group).every(v => v !== null);
+    }
+
+    function usedFactions() {
+      return new Set(Object.values(currentMatch().assignments).filter(Boolean));
+    }
+
+    function r1Picks() { return getSlotValues("r1-pick").filter(Boolean); }
+
+    function r2BanTarget() { return currentMatch().assignments[slotKey("r2-ban", 0)] || null; }
+
+    function r3Candidates() {
+      if (isMatch3()) return r1Picks();
+      const banned = r2BanTarget();
+      return r1Picks().filter(f => f !== banned);
+    }
+
+    function canAssign(faction, group, index) {
+      const match = currentMatch();
+      const phases = getPhases();
+      const phase = phases[match.phase];
+      if (!phase || phase.slot !== group) return false;
+      if (match.slotIndex !== index) return false;
+      if (match.assignments[slotKey(group, index)]) return false;
+
+      if (isBlockedBySeries(faction, group)) return false;
+
+      const used = usedFactions();
+
+      if (group === "r1-pick") {
+        return !used.has(faction);
+      }
+      if (group === "r1-ban") {
+        if (isMatch3()) return false;
+        const picks = r1Picks();
+        return !used.has(faction) && !picks.includes(faction);
+      }
+      if (group === "r2-ban") {
+        if (isMatch3()) return false;
+        return r1Picks().includes(faction);
+      }
+      if (group === "r2-pick") {
+        if (isMatch3()) return true;
+        const r1Ban = match.assignments[slotKey("r1-ban", 0)];
+        return faction !== r1Ban;
+      }
+      if (group === "r3-pick") {
+        return r3Candidates().includes(faction);
+      }
+      return false;
+    }
+
+    function advancePhase() {
+      const match = currentMatch();
+      const phases = getPhases();
+      while (match.phase < phases.length - 1) {
+        const cur = phases[match.phase];
+        if (cur.slot === null) break;
+        const vals = getSlotValues(cur.slot);
+        const nextEmpty = vals.findIndex(v => v === null);
+        if (nextEmpty !== -1) {
+          match.slotIndex = nextEmpty;
+          return;
+        }
+        match.phase++;
+        match.slotIndex = 0;
+      }
+    }
+
+    function assign(group, index, faction) {
+      currentMatch().assignments[slotKey(group, index)] = faction;
+      advancePhase();
+      render();
+    }
+
+    function unassign(group, index) {
+      const match = currentMatch();
+      const key = slotKey(group, index);
+      delete match.assignments[key];
+
+      const groupPhase = getGroupPhase(group);
+      if (groupPhase === -1) return;
+      if (match.phase > groupPhase || (match.phase === groupPhase + 1 && allAssigned(getPhases()[match.phase]?.slot))) {
+        match.phase = groupPhase;
+      }
+      match.slotIndex = index;
+
+      const phaseOrder = getPhaseOrder();
+      const startIdx = phaseOrder.indexOf(group);
+      for (let i = startIdx + 1; i < phaseOrder.length; i++) {
+        const g = phaseOrder[i];
+        for (let j = 0; j < getSlotCount(g); j++) {
+          delete match.assignments[slotKey(g, j)];
+        }
+      }
+
+      render();
+    }
+
+    function renderRoundLayout() {
+      const m3 = isMatch3();
+      document.getElementById("match3WinnerPanel").classList.toggle("hidden", !m3);
+      document.getElementById("col-r1-ban").classList.toggle("hidden", m3);
+      document.getElementById("col-r2-ban").classList.toggle("hidden", m3);
+      document.getElementById("hdr-r1-pick").textContent = m3 ? "Pick 2 races" : "Pick 3 races";
+      document.getElementById("hdr-r2-pick").textContent = "Pick your race";
+      document.getElementById("hdr-r3-pick").textContent = m3
+        ? "Pick 1 of your 2 races"
+        : "Pick 1 of the 2 remaining";
+    }
+
+    function renderSlots() {
+      for (const group of ALL_SLOT_GROUPS) {
+        const count = getSlotCount(group);
+        const container = document.getElementById(group);
+        container.innerHTML = "";
+        if (count === 0) continue;
+
+        const phases = getPhases();
+        const phase = phases[currentMatch().phase];
+        const match = currentMatch();
+        const assignments = match.assignments;
+
+        for (let i = 0; i < count; i++) {
+          const faction = assignments[slotKey(group, i)];
+          const slot = document.createElement("div");
+          slot.className = "slot";
+          const isActive = phase && phase.slot === group && match.slotIndex === i;
+
+          if (faction) {
+            slot.classList.add("filled");
+            const img = document.createElement("img");
+            img.src = bannerSrc(faction);
+            img.alt = displayName(faction);
+            slot.appendChild(img);
+
+            const isR2BanPhase = !isMatch3() && phase?.slot === "r2-ban";
+            const isR3PickPhase = phase?.slot === "r3-pick";
+            const canBanFromHere = isR2BanPhase && group === "r1-pick" && canAssign(faction, "r2-ban", 0);
+            const canPickFromHere = isR3PickPhase && group === "r1-pick" && canAssign(faction, "r3-pick", 0);
+
+            if (canBanFromHere || canPickFromHere) {
+              slot.classList.add("bannable");
+              slot.title = canBanFromHere ? "Click to ban this race" : "Click to pick this race";
+              slot.addEventListener("click", () => {
+                if (canBanFromHere) assign("r2-ban", 0, faction);
+                else if (canPickFromHere) assign("r3-pick", 0, faction);
+              });
+            }
+
+            const btn = document.createElement("button");
+            btn.className = "remove";
+            btn.textContent = "×";
+            btn.title = "Remove";
+            btn.addEventListener("click", (e) => {
+              e.stopPropagation();
+              unassign(group, i);
+            });
+            slot.appendChild(btn);
+          } else {
+            if (isActive) slot.classList.add("active");
+            const ph = document.createElement("span");
+            ph.className = "placeholder";
+            ph.textContent = isActive ? "Next pick goes here" : "—";
+            slot.appendChild(ph);
+          }
+
+          container.appendChild(slot);
+        }
+      }
+    }
+
+    function tryAssignIcon(faction) {
+      const match = currentMatch();
+      const phase = getPhases()[match.phase];
+      if (!phase?.slot) return;
+      if (!canAssign(faction, phase.slot, match.slotIndex)) return;
+      assign(phase.slot, match.slotIndex, faction);
+    }
+
+    function iconTitle(faction, available, group) {
+      if (available) return displayName(faction);
+      if (group && isBlockedBySeries(faction, group)) {
+        const player = pickingPlayer(group);
+        const usedIn = [];
+        for (let i = 0; i < appState.currentMatch; i++) {
+          if (playerFinalPick(i, player) === faction) usedIn.push(i + 1);
+        }
+        return `${displayName(faction)} — already used in Match ${usedIn.join(", ")}`;
+      }
+      return displayName(faction);
+    }
+
+    function renderIcons() {
+      const pool = document.getElementById("iconPool");
+      pool.innerHTML = "";
+      const match = currentMatch();
+      const phase = getPhases()[match.phase];
+
+      for (const faction of FACTIONS) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "icon-btn";
+        btn.dataset.faction = faction;
+
+        let available = true;
+        if (phase?.slot) {
+          available = canAssign(faction, phase.slot, match.slotIndex);
+        } else {
+          available = false;
+        }
+
+        btn.title = iconTitle(faction, available, phase?.slot || null);
+        if (!available) btn.classList.add("unavailable");
+
+        const img = document.createElement("img");
+        img.src = iconSrc(faction);
+        img.alt = displayName(faction);
+        img.draggable = false;
+        btn.appendChild(img);
+
+        pool.appendChild(btn);
+      }
+    }
+
+    function renderResult() {
+      const p1El = document.getElementById("p1-final");
+      const p2El = document.getElementById("p2-final");
+      const mi = appState.currentMatch;
+
+      const p1Faction = playerFinalPick(mi, 1);
+      const p2Faction = playerFinalPick(mi, 2);
+
+      for (const [el, faction] of [[p1El, p1Faction], [p2El, p2Faction]]) {
+        el.innerHTML = "";
+        el.className = "banner-wrap";
+        if (faction) {
+          const img = document.createElement("img");
+          img.src = bannerSrc(faction);
+          img.alt = displayName(faction);
+          el.appendChild(img);
+        } else {
+          el.classList.add("empty");
+          el.textContent = "—";
+        }
+      }
+    }
+
+    function renderTabs() {
+      document.querySelectorAll(".match-tab").forEach((tab) => {
+        const idx = Number(tab.dataset.match);
+        tab.classList.toggle("active", idx === appState.currentMatch);
+        tab.classList.toggle("complete", matchIsComplete(idx));
+
+        const meta = tab.querySelector("[data-tab-meta]");
+        const p1 = playerFinalPick(idx, 1);
+        const p2 = playerFinalPick(idx, 2);
+        if (p1 && p2) {
+          meta.textContent = `${displayName(p1)} vs ${displayName(p2)}`;
+        } else if (idx === appState.currentMatch) {
+          meta.textContent = "In progress";
+        } else {
+          meta.textContent = "Not started";
+        }
+      });
+    }
+
+    function seriesHintExtra() {
+      if (appState.currentMatch === 0) return "";
+      const p1Used = [...playerUsedRaces(1, appState.currentMatch)].map(displayName);
+      const p2Used = [...playerUsedRaces(2, appState.currentMatch)].map(displayName);
+      const parts = [];
+      if (p1Used.length) parts.push(`${p1Name()} used: ${p1Used.join(", ")}`);
+      if (p2Used.length) parts.push(`${p2Name()} used: ${p2Used.join(", ")}`);
+      return parts.length ? ` · ${parts.join(" · ")}` : "";
+    }
+
+    function render() {
+      const phase = getPhases()[currentMatch().phase];
+      const baseHint = phase ? formatHint(phase.hint) : "";
+      document.getElementById("phaseHint").textContent = baseHint + seriesHintExtra();
+      renderPlayerNames();
+      renderRoundLayout();
+      renderTabs();
+      renderIcons();
+      renderSlots();
+      renderResult();
+    }
+
+    document.getElementById("matchTabs").addEventListener("click", (e) => {
+      const tab = e.target.closest(".match-tab");
+      if (!tab) return;
+      appState.currentMatch = Number(tab.dataset.match);
+      const match = currentMatch();
+      const phases = getPhases();
+      if (match.phase >= phases.length) match.phase = 0;
+      render();
+    });
+
+    document.getElementById("iconPool").addEventListener("click", (e) => {
+      const btn = e.target.closest(".icon-btn");
+      if (!btn || btn.classList.contains("unavailable")) return;
+      tryAssignIcon(btn.dataset.faction);
+    });
+
+    document.getElementById("p1Name").addEventListener("input", render);
+    document.getElementById("p2Name").addEventListener("input", render);
+
+    document.getElementById("match2Winner").addEventListener("change", (e) => {
+      const val = e.target.value;
+      appState.match2Winner = val ? Number(val) : null;
+      appState.matches[2] = createEmptyMatch();
+      render();
+    });
+
+    document.getElementById("btnReset").addEventListener("click", () => {
+      appState.matches = Array.from({ length: MATCH_COUNT }, () => createEmptyMatch());
+      appState.currentMatch = 0;
+      appState.match2Winner = null;
+      render();
+    });
+
+    render();
+  </script>
+</body>
+</html>
