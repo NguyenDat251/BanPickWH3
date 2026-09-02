@@ -721,7 +721,12 @@
       return slotOwner(group);
     }
 
+    function isPickGroup(group) {
+      return group === "r1-pick" || group === "r2-pick" || group === "r3-pick";
+    }
+
     function isBlockedBySeries(faction, group) {
+      if (!isPickGroup(group)) return false;
       const player = pickingPlayer(group);
       if (!player || appState.currentMatch === 0) return false;
       return playerUsedRaces(player, appState.currentMatch).has(faction);
