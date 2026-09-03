@@ -82,7 +82,38 @@
       padding-top: 1rem;
     }
 
-    /* ── Match tabs (BO3) ── */
+    .mode-switch {
+      display: flex;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-bottom: 0.85rem;
+    }
+
+    .mode-btn {
+      min-width: 88px;
+      padding: 0.5rem 1.1rem;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--muted);
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+
+    .mode-btn:hover {
+      border-color: var(--accent);
+      color: var(--text);
+    }
+
+    .mode-btn.active {
+      border-color: var(--highlight);
+      color: var(--text);
+      background: #2a2618;
+      box-shadow: 0 0 0 1px rgba(240, 192, 64, 0.25);
+    }
+
+    /* ── Match tabs ── */
     .match-tabs {
       display: flex;
       justify-content: center;
@@ -445,7 +476,7 @@
 </head>
 <body>
 
-  <h1>Ban / Pick — BO3</h1>
+  <h1 id="pageTitle">Ban / Pick — BO3</h1>
   <p class="subtitle">Click a faction icon — it fills the highlighted slot instantly.</p>
 
   <div class="player-names">
@@ -460,24 +491,16 @@
     </label>
   </div>
 
-  <nav class="match-tabs" id="matchTabs">
-    <button type="button" class="match-tab active" data-match="0">
-      Match 1
-      <span class="tab-meta" data-tab-meta="0">Not started</span>
-    </button>
-    <button type="button" class="match-tab" data-match="1">
-      Match 2
-      <span class="tab-meta" data-tab-meta="1">Not started</span>
-    </button>
-    <button type="button" class="match-tab" data-match="2">
-      Match 3
-      <span class="tab-meta" data-tab-meta="2">Not started</span>
-    </button>
-  </nav>
+  <div class="mode-switch" id="modeSwitch">
+    <button type="button" class="mode-btn active" data-mode="bo3">BO3</button>
+    <button type="button" class="mode-btn" data-mode="bo5">BO5</button>
+  </div>
+
+  <nav class="match-tabs" id="matchTabs"></nav>
 
   <div class="match3-winner hidden" id="match3WinnerPanel">
     <label>
-      Match 2 winner (first pick in Match 3)
+      <span id="winnerSelectLabel">Match 2 winner (first pick in Match 3)</span>
       <select id="match2Winner">
         <option value="">Select winner…</option>
         <option value="1" id="match2WinnerP1">Player 1</option>
@@ -597,18 +620,38 @@
     ];
 
     const ALL_SLOT_GROUPS = ["r1-pick", "r1-ban", "r2-ban", "r2-pick", "r3-pick"];
+    const MAX_MATCHES = 5;
 
-    function isMatch2(matchIndex = appState.currentMatch) {
-      return matchIndex === 1;
+    const appState = {
+      mode: "bo3",
+      currentMatch: 0,
+      previousWinner: null,
+      matches: Array.from({ length: MAX_MATCHES }, () => ({
+        assignments: {},
+        phase: 0,
+        slotIndex: 0,
+      })),
+    };
+
+    function matchCount() {
+      return appState.mode === "bo5" ? 5 : 3;
     }
 
-    function isMatch3(matchIndex = appState.currentMatch) {
-      return matchIndex === 2;
+    function isP2FirstMatch(matchIndex = appState.currentMatch) {
+      return matchIndex % 2 === 1 && !isPickOnlyMatch(matchIndex);
+    }
+
+    function isPickOnlyMatch(matchIndex = appState.currentMatch) {
+      return matchIndex === matchCount() - 1;
+    }
+
+    function previousMatchNumber() {
+      return matchCount() - 1;
     }
 
     function getOpener(matchIndex = appState.currentMatch) {
-      if (isMatch2(matchIndex)) return 2;
-      if (isMatch3(matchIndex)) return appState.match2Winner || null;
+      if (isPickOnlyMatch(matchIndex)) return appState.previousWinner || null;
+      if (isP2FirstMatch(matchIndex)) return 2;
       return 1;
     }
 
@@ -623,26 +666,28 @@
     }
 
     function getPhases(matchIndex = appState.currentMatch) {
-      if (isMatch3(matchIndex)) {
+      const matchNum = matchIndex + 1;
+      if (isPickOnlyMatch(matchIndex)) {
         const opener = getOpener(matchIndex);
+        const prev = previousMatchNumber();
         if (!opener) {
-          return [{ hint: "Select Match 2 winner above — they pick first in Match 3", slot: null }];
+          return [{ hint: `Select Match ${prev} winner above — they pick first in Match ${matchNum}`, slot: null }];
         }
         const o = opener === 1 ? "{p1}" : "{p2}";
         const d = opener === 1 ? "{p2}" : "{p1}";
         return [
-          { hint: `Match 3 — ${o}: pick 2 races`, slot: "r1-pick" },
-          { hint: `Match 3 — ${d}: pick your race`, slot: "r2-pick" },
-          { hint: `Match 3 — ${o}: pick 1 of your 2 races (click icon or banner above)`, slot: "r3-pick" },
+          { hint: `Match ${matchNum} — ${o}: pick 2 races`, slot: "r1-pick" },
+          { hint: `Match ${matchNum} — ${d}: pick your race`, slot: "r2-pick" },
+          { hint: `Match ${matchNum} — ${o}: pick 1 of your 2 races (click icon or banner above)`, slot: "r3-pick" },
           { hint: "Done! Both players have their factions.", slot: null },
         ];
       }
-      if (isMatch2(matchIndex)) return MATCH2_PHASES;
+      if (isP2FirstMatch(matchIndex)) return MATCH2_PHASES;
       return STANDARD_PHASES;
     }
 
     function getSlotCount(group, matchIndex = appState.currentMatch) {
-      if (isMatch3(matchIndex)) {
+      if (isPickOnlyMatch(matchIndex)) {
         if (group === "r1-pick") return 2;
         if (group === "r2-pick" || group === "r3-pick") return 1;
         return 0;
@@ -652,7 +697,7 @@
     }
 
     function getPhaseOrder(matchIndex = appState.currentMatch) {
-      return isMatch3(matchIndex)
+      return isPickOnlyMatch(matchIndex)
         ? ["r1-pick", "r2-pick", "r3-pick"]
         : ["r1-pick", "r1-ban", "r2-ban", "r2-pick", "r3-pick"];
     }
@@ -665,31 +710,20 @@
       return ALL_SLOT_GROUPS.filter(g => getSlotCount(g, matchIndex) > 0);
     }
 
-    const MATCH_COUNT = 3;
-
-    const appState = {
-      currentMatch: 0,
-      match2Winner: null,
-      matches: Array.from({ length: MATCH_COUNT }, () => ({
-        assignments: {},
-        phase: 0,
-        slotIndex: 0,
-      })),
-    };
-
     function currentMatch() {
       return appState.matches[appState.currentMatch];
     }
 
     function playerFinalPick(matchIndex, player) {
       const m = appState.matches[matchIndex];
-      if (isMatch3(matchIndex)) {
+      if (!m) return null;
+      if (isPickOnlyMatch(matchIndex)) {
         const opener = getOpener(matchIndex);
         if (!opener) return null;
         if (player === opener) return m.assignments["r3-pick-0"] || null;
         return m.assignments["r2-pick-0"] || null;
       }
-      if (isMatch2(matchIndex)) {
+      if (isP2FirstMatch(matchIndex)) {
         if (player === 1) return m.assignments["r2-pick-0"] || null;
         if (player === 2) return m.assignments["r3-pick-0"] || null;
       } else {
@@ -774,27 +808,35 @@
         document.getElementById("hdr-r2-ban").textContent = `Ban 1 from ${playerNameNum(opener)}'s picks`;
       }
 
+      document.getElementById("pageTitle").textContent =
+        `Ban / Pick — ${appState.mode.toUpperCase()}`;
+
       const sel = document.getElementById("match2Winner");
       document.getElementById("match2WinnerP1").textContent = p1Name();
       document.getElementById("match2WinnerP2").textContent = p2Name();
-      sel.value = appState.match2Winner ? String(appState.match2Winner) : "";
+      sel.value = appState.previousWinner ? String(appState.previousWinner) : "";
 
-      if (isMatch3()) {
+      const prev = previousMatchNumber();
+      const last = matchCount();
+      document.getElementById("winnerSelectLabel").textContent =
+        `Match ${prev} winner (first pick in Match ${last})`;
+
+      if (isPickOnlyMatch()) {
         if (opener) {
           const d = playerNameNum(defender);
           const o = playerNameNum(opener);
           document.getElementById("bo3Note").textContent =
-            `Match 3 (pick-only): ${o} picks 2 → ${d} picks 1 → ${o} picks 1 final race. ${o} won Match 2 and picks first. Races used in earlier matches are disabled.`;
+            `Match ${last} (pick-only): ${o} picks 2 → ${d} picks 1 → ${o} picks 1 final race. ${o} won Match ${prev} and picks first. Races used in earlier matches are disabled.`;
         } else {
           document.getElementById("bo3Note").textContent =
-            "Select who won Match 2 — they get first pick in Match 3. Each race can only be used once per player across the series.";
+            `Select who won Match ${prev} — they get first pick in Match ${last}. Each race can only be used once per player across the series.`;
         }
-      } else if (isMatch2()) {
+      } else if (isP2FirstMatch()) {
         document.getElementById("bo3Note").textContent =
-          `Match 2: ${p2Name()} picks first. Each player can only play each race once across the series.`;
+          `Match ${mi + 1}: ${p2Name()} picks first. Each player can only play each race once across the series.`;
       } else {
         document.getElementById("bo3Note").textContent =
-          `Match 1: ${p1Name()} picks first. Each player can only play each race once across the series.`;
+          `Match ${mi + 1}: ${p1Name()} picks first. Each player can only play each race once across the series.`;
       }
     }
 
@@ -824,7 +866,7 @@
     function r2BanTarget() { return currentMatch().assignments[slotKey("r2-ban", 0)] || null; }
 
     function r3Candidates() {
-      if (isMatch3()) return r1Picks();
+      if (isPickOnlyMatch()) return r1Picks();
       const banned = r2BanTarget();
       return r1Picks().filter(f => f !== banned);
     }
@@ -845,16 +887,16 @@
         return !used.has(faction);
       }
       if (group === "r1-ban") {
-        if (isMatch3()) return false;
+        if (isPickOnlyMatch()) return false;
         const picks = r1Picks();
         return !used.has(faction) && !picks.includes(faction);
       }
       if (group === "r2-ban") {
-        if (isMatch3()) return false;
+        if (isPickOnlyMatch()) return false;
         return r1Picks().includes(faction);
       }
       if (group === "r2-pick") {
-        if (isMatch3()) return true;
+        if (isPickOnlyMatch()) return true;
         const r1Ban = match.assignments[slotKey("r1-ban", 0)];
         return faction !== r1Ban;
       }
@@ -912,13 +954,13 @@
     }
 
     function renderRoundLayout() {
-      const m3 = isMatch3();
-      document.getElementById("match3WinnerPanel").classList.toggle("hidden", !m3);
-      document.getElementById("col-r1-ban").classList.toggle("hidden", m3);
-      document.getElementById("col-r2-ban").classList.toggle("hidden", m3);
-      document.getElementById("hdr-r1-pick").textContent = m3 ? "Pick 2 races" : "Pick 3 races";
+      const pickOnly = isPickOnlyMatch();
+      document.getElementById("match3WinnerPanel").classList.toggle("hidden", !pickOnly);
+      document.getElementById("col-r1-ban").classList.toggle("hidden", pickOnly);
+      document.getElementById("col-r2-ban").classList.toggle("hidden", pickOnly);
+      document.getElementById("hdr-r1-pick").textContent = pickOnly ? "Pick 2 races" : "Pick 3 races";
       document.getElementById("hdr-r2-pick").textContent = "Pick your race";
-      document.getElementById("hdr-r3-pick").textContent = m3
+      document.getElementById("hdr-r3-pick").textContent = pickOnly
         ? "Pick 1 of your 2 races"
         : "Pick 1 of the 2 remaining";
     }
@@ -948,7 +990,7 @@
             img.alt = displayName(faction);
             slot.appendChild(img);
 
-            const isR2BanPhase = !isMatch3() && phase?.slot === "r2-ban";
+            const isR2BanPhase = !isPickOnlyMatch() && phase?.slot === "r2-ban";
             const isR3PickPhase = phase?.slot === "r3-pick";
             const canBanFromHere = isR2BanPhase && group === "r1-pick" && canAssign(faction, "r2-ban", 0);
             const canPickFromHere = isR3PickPhase && group === "r1-pick" && canAssign(faction, "r3-pick", 0);
@@ -1061,12 +1103,18 @@
     }
 
     function renderTabs() {
-      document.querySelectorAll(".match-tab").forEach((tab) => {
-        const idx = Number(tab.dataset.match);
-        tab.classList.toggle("active", idx === appState.currentMatch);
-        tab.classList.toggle("complete", matchIsComplete(idx));
+      const tabs = document.getElementById("matchTabs");
+      tabs.innerHTML = "";
+      for (let idx = 0; idx < matchCount(); idx++) {
+        const tab = document.createElement("button");
+        tab.type = "button";
+        tab.className = "match-tab";
+        tab.dataset.match = String(idx);
+        if (idx === appState.currentMatch) tab.classList.add("active");
+        if (matchIsComplete(idx)) tab.classList.add("complete");
 
-        const meta = tab.querySelector("[data-tab-meta]");
+        const meta = document.createElement("span");
+        meta.className = "tab-meta";
         const p1 = playerFinalPick(idx, 1);
         const p2 = playerFinalPick(idx, 2);
         if (p1 && p2) {
@@ -1076,7 +1124,10 @@
         } else {
           meta.textContent = "Not started";
         }
-      });
+
+        tab.append(`Match ${idx + 1}`, meta);
+        tabs.appendChild(tab);
+      }
     }
 
     function seriesHintExtra() {
@@ -1093,6 +1144,7 @@
       const phase = getPhases()[currentMatch().phase];
       const baseHint = phase ? formatHint(phase.hint) : "";
       document.getElementById("phaseHint").textContent = baseHint + seriesHintExtra();
+      renderModeButtons();
       renderPlayerNames();
       renderRoundLayout();
       renderTabs();
@@ -1100,6 +1152,28 @@
       renderSlots();
       renderResult();
     }
+
+    function resetSeries() {
+      appState.matches = Array.from({ length: MAX_MATCHES }, () => createEmptyMatch());
+      appState.currentMatch = 0;
+      appState.previousWinner = null;
+    }
+
+    function renderModeButtons() {
+      document.querySelectorAll(".mode-btn").forEach((btn) => {
+        btn.classList.toggle("active", btn.dataset.mode === appState.mode);
+      });
+    }
+
+    document.getElementById("modeSwitch").addEventListener("click", (e) => {
+      const btn = e.target.closest(".mode-btn");
+      if (!btn) return;
+      const mode = btn.dataset.mode;
+      if (mode === appState.mode) return;
+      appState.mode = mode;
+      resetSeries();
+      render();
+    });
 
     document.getElementById("matchTabs").addEventListener("click", (e) => {
       const tab = e.target.closest(".match-tab");
@@ -1122,15 +1196,13 @@
 
     document.getElementById("match2Winner").addEventListener("change", (e) => {
       const val = e.target.value;
-      appState.match2Winner = val ? Number(val) : null;
-      appState.matches[2] = createEmptyMatch();
+      appState.previousWinner = val ? Number(val) : null;
+      appState.matches[matchCount() - 1] = createEmptyMatch();
       render();
     });
 
     document.getElementById("btnReset").addEventListener("click", () => {
-      appState.matches = Array.from({ length: MATCH_COUNT }, () => createEmptyMatch());
-      appState.currentMatch = 0;
-      appState.match2Winner = null;
+      resetSeries();
       render();
     });
 
