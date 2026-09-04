@@ -888,8 +888,8 @@
       }
       if (group === "r1-ban") {
         if (isPickOnlyMatch()) return false;
-        const picks = r1Picks();
-        return !used.has(faction) && !picks.includes(faction);
+        // Can ban any race, including ones already in Round 1 picks
+        return r1Picks().includes(faction) || !used.has(faction);
       }
       if (group === "r2-ban") {
         if (isPickOnlyMatch()) return false;
@@ -990,16 +990,19 @@
             img.alt = displayName(faction);
             slot.appendChild(img);
 
+            const isR1BanPhase = !isPickOnlyMatch() && phase?.slot === "r1-ban";
             const isR2BanPhase = !isPickOnlyMatch() && phase?.slot === "r2-ban";
             const isR3PickPhase = phase?.slot === "r3-pick";
+            const canR1BanFromHere = isR1BanPhase && group === "r1-pick" && canAssign(faction, "r1-ban", 0);
             const canBanFromHere = isR2BanPhase && group === "r1-pick" && canAssign(faction, "r2-ban", 0);
             const canPickFromHere = isR3PickPhase && group === "r1-pick" && canAssign(faction, "r3-pick", 0);
 
-            if (canBanFromHere || canPickFromHere) {
+            if (canR1BanFromHere || canBanFromHere || canPickFromHere) {
               slot.classList.add("bannable");
-              slot.title = canBanFromHere ? "Click to ban this race" : "Click to pick this race";
+              slot.title = canPickFromHere ? "Click to pick this race" : "Click to ban this race";
               slot.addEventListener("click", () => {
-                if (canBanFromHere) assign("r2-ban", 0, faction);
+                if (canR1BanFromHere) assign("r1-ban", 0, faction);
+                else if (canBanFromHere) assign("r2-ban", 0, faction);
                 else if (canPickFromHere) assign("r3-pick", 0, faction);
               });
             }
